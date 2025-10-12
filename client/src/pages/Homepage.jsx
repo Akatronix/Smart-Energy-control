@@ -71,6 +71,16 @@ const Homepage = () => {
   const [isAuto, setIsAuto] = useState(false);
   const navigate = useNavigate();
 
+  function timeDisplay(timestamp) {
+    if (!timestamp) return "";
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  }
+
   useEffect(() => {
     let interval = setInterval(async () => {
       const isValid = validateToken();
@@ -168,7 +178,7 @@ const Homepage = () => {
               <span className="text-red-400 ml-1.5">
                 {relayStatus.relayState}
               </span>
-              .
+              {relayStatus.relayState && "."}
             </span>
             {/* <div className="bg-red-500 md:flex md:items-center md:justify-center pb-1.5"> */}
             <Switch
@@ -176,10 +186,10 @@ const Homepage = () => {
               onCheckedChange={async (checked) => {
                 setIsAuto(checked);
                 const data = await UpdateSwitch({
-                  id: "68e8a4b2791d7679f72818c2",
+                  id: import.meta.env.VITE_RELAY_ID,
                   relayState: checked == true ? "ON" : "OFF",
                 });
-                console.log(data);
+
                 if (data.status == 200) {
                   toast.success(
                     `Successfully Turned ${data.data.relayState} the Device`
@@ -306,17 +316,6 @@ const Homepage = () => {
                                 {activity.attempted == true ? (
                                   <div>
                                     <span className="h-8 w-8 rounded-full bg-red-500 flex items-center justify-center ring-8 ring-white">
-                                      {/* <svg
-                                        className="h-5 w-5 text-white"
-                                        fill="currentColor"
-                                        viewBox="0 0 20 20"
-                                      >
-                                        <path
-                                          fillRule="evenodd"
-                                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                          clipRule="evenodd"
-                                        />
-                                      </svg> */}
                                       <VscClose className="text-white size-5 font-extrabold" />
                                     </span>
                                   </div>
@@ -352,7 +351,7 @@ const Homepage = () => {
                                     </p>
                                   </div>
                                   <div className="text-right text-sm whitespace-nowrap text-gray-500">
-                                    <p>10:42 AM</p>
+                                    <p>{timeDisplay(activity.timestamp)}</p>
                                   </div>
                                 </div>
                               </div>
