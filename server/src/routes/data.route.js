@@ -4,19 +4,23 @@ const {
   createDataSensor,
   updateDataSensor,
 } = require("../controllers/data.controller");
-const {
-  createNewSoket,
-  updateControl,
-} = require("../controllers/relay.controller");
+
 const { Login } = require("../controllers/auth.controller");
+const {
+  createSocket,
+  updateSocket,
+} = require("../controllers/socket.controller");
+const { updateSwitch } = require("../controllers/control.controller");
 
 const router = express.Router();
 
 router.get("/data", getAllData);
-router.post("/create", createDataSensor);
-router.post("/update", updateDataSensor);
-router.post("/relay/create", createNewSoket);
-router.post("/relay/update", updateControl);
+
+router.post("/total/create", createDataSensor);
+router.post("/total/update", updateDataSensor);
+router.post("/socket/create", createSocket);
+router.post("/socket/update", updateSocket);
+router.post("/switch/update", updateSwitch);
 router.post("/auth/login", Login);
 
 module.exports = router;

@@ -2,14 +2,13 @@ const mongoose = require("mongoose");
 
 const sensorSchema = new mongoose.Schema(
   {
-    current: String,
+    totalEnergy: String,
     voltage: String,
     motion: String,
-    humans: String,
   },
   { timestamps: true }
 );
 
-const SensorData = mongoose.model("Energy_data", sensorSchema);
+const SensorData = mongoose.model("power_info", sensorSchema);
 
 module.exports = SensorData;
