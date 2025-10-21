@@ -374,7 +374,7 @@ const Homepage = () => {
         setError("Error: failed to fetch data");
         toast.error("Failed to fetch sensor data");
       }
-    }, 5000);
+    }, 1000);
 
     return () => clearInterval(interval);
   }, [sensor, activities, appData, chartControl, error, navigate]);
