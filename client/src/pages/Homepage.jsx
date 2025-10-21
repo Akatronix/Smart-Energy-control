@@ -481,7 +481,7 @@ const Homepage = () => {
               <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl shadow-md p-6 text-white">
                 <h3 className="text-lg font-medium mb-2">Total Energy</h3>
                 <p className="text-3xl font-bold">
-                  {sensor.totalEnergy ? `${sensor.totalEnergy}A` : "0.00 A"}
+                  {sensor.totalEnergy ? `${sensor.totalEnergy} kWh` : "0.00 kWh"}
                 </p>
                 <div className="mt-4 flex items-center">
                   <MdPower className="h-5 w-5 text-blue-200" />
