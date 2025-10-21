@@ -6,7 +6,7 @@ const handleConfirm = async ({ ssid, password }) => {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ id: "68f6e4c40d3af76a142703c0", ssid, password }),
+      body: JSON.stringify({ id: import.meta.env.VITE_HOID, ssid, password }),
     }
   );
 
