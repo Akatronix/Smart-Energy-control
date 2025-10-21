@@ -38,7 +38,7 @@ const ApplianceCard = React.memo(({ appliance, appData, onToggle }) => {
           <div className="flex items-center justify-start gap-2">
             <p className="text-gray-500">
               <span className="text-gray-500 text-sm">
-                Device is currently :
+                Device is:
               </span>
               {appData?.switchStatus == "ON" ? " ON" : " OFF"}
             </p>
