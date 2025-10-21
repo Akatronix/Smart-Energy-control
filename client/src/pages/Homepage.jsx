@@ -21,7 +21,7 @@ import logo from "../assets/logo.jpg";
 import UpdateSwitch from "@/utils/switchPost";
 import SimpleChart from "@/components/chartBox";
 import clearHistoricalData from "@/utils/clearHistoricalData";
-import Hospot from "@/components/hospot";
+import Hospot from "@/components/Hospot";
 
 // Memoized appliance card component to prevent unnecessary re-renders
 const ApplianceCard = React.memo(({ appliance, appData, onToggle }) => {
