@@ -1,14 +1,12 @@
-export default async function UpdateSwitch(id, newStatus) {
-  const updateFields = { id, newStatus };
+export default async function clearHistoricalData() {
   try {
     const response = await fetch(
-      `${import.meta.env.VITE_BASE_URL}/api/switch/update`,
+      `${import.meta.env.VITE_BASE_URL}/api/history/clear`,
       {
-        method: "POST",
+        method: "DELETE",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(updateFields),
       }
     );
 
@@ -19,7 +17,7 @@ export default async function UpdateSwitch(id, newStatus) {
     const data = await response.json();
     return data;
   } catch (error) {
-    console.error("Error updating data:", error);
+    console.error("Error clearing historical data:", error);
     return null;
   }
 }

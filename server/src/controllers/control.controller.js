@@ -1,16 +1,16 @@
 const SocketData = require("../models/sockets.model");
 
 async function updateSwitch(req, res) {
-  const { id, switchValue } = req.body;
+  const { id, newStatus } = req.body;
   try {
-    if (!id || switchValue === undefined) {
+    if (!id || newStatus === undefined) {
       return res
         .status(400)
         .send({ message: "ID and switchValue are required!" });
     }
     const updatedData = await SocketData.findByIdAndUpdate(
       id,
-      { switchStatus: switchValue },
+      { switchStatus: newStatus },
       { new: true }
     );
 

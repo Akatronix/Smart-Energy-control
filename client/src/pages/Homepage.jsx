@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import getData from "@/utils/getData";
 import validateToken from "@/utils/isTokenExpired";
 import { useNavigate } from "react-router";
@@ -14,18 +14,129 @@ import {
   FaSnowflake,
   FaTv,
   FaTemperatureLow,
+  FaTrashAlt,
 } from "react-icons/fa";
 
 import logo from "../assets/logo.jpg";
 import UpdateSwitch from "@/utils/switchPost";
 import SimpleChart from "@/components/chartBox";
+import clearHistoricalData from "@/utils/clearHistoricalData";
+import Hospot from "@/components/hospot";
+
+// Memoized appliance card component to prevent unnecessary re-renders
+const ApplianceCard = React.memo(({ appliance, appData, onToggle }) => {
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+      <div className="p-5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <div className="text-2xl mr-3">{appliance.icon}</div>
+            <h4 className="text-lg font-medium text-gray-900">
+              {appliance.name}
+            </h4>
+          </div>
+          <div className="flex items-center justify-start gap-2">
+            <p className="text-gray-500">
+              <span className="text-gray-500 text-sm">
+                Device is currently :
+              </span>
+              {appData?.switchStatus == "ON" ? " ON" : " OFF"}
+            </p>
+            <Switch
+              checked={appData?.switchStatus == "ON" ? true : appliance.status}
+              onCheckedChange={onToggle}
+            />
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-4">
+          <div className="bg-gray-50 p-3 rounded-lg">
+            <p className="text-sm text-gray-500">Voltage</p>
+            <p className="text-lg font-semibold">
+              {appData?.voltage ? appData.voltage : "0"} V
+            </p>
+          </div>
+          <div className="bg-gray-50 p-3 rounded-lg">
+            <p className="text-sm text-gray-500">Current</p>
+            <p className="text-lg font-semibold">
+              {appData?.current ? appData.current : "0"} A
+            </p>
+          </div>
+          <div className="bg-gray-50 p-3 rounded-lg">
+            <p className="text-sm text-gray-500">Power</p>
+            <p className="text-lg font-semibold">
+              {appData?.power ? appData.power : "0"} W
+            </p>
+          </div>
+          <div className="bg-gray-50 p-3 rounded-lg">
+            <p className="text-sm text-gray-500">Energy</p>
+            <p className="text-lg font-semibold">
+              {appData?.energy ? appData.energy : "0"} kWh
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+// Memoized activity item component
+const ActivityItem = React.memo(({ activity, timeDisplay }) => {
+  return (
+    <li>
+      <div className="relative pb-8">
+        <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200"></span>
+        <div className="relative flex space-x-3">
+          {activity.attempted == true ? (
+            <div>
+              <span className="h-8 w-8 rounded-full bg-red-500 flex items-center justify-center ring-8 ring-white">
+                <VscClose className="text-white size-5 font-extrabold" />
+              </span>
+            </div>
+          ) : (
+            <div>
+              <span className="h-8 w-8 rounded-full bg-green-500 flex items-center justify-center ring-8 ring-white">
+                <svg
+                  className="h-5 w-5 text-white"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </span>
+            </div>
+          )}
+          <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
+            <div>
+              <p className="text-sm text-gray-900 font-medium">
+                {activity.title}
+              </p>
+              <p className="text-sm text-gray-500">
+                {activity.attempted == true
+                  ? "who attempted:"
+                  : "who logged-in:"}
+              </p>
+              <p className="text-sm text-gray-500">{activity.email}</p>
+            </div>
+            <div className="text-right text-sm whitespace-nowrap text-gray-500">
+              <p>{timeDisplay(activity.timestamp)}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </li>
+  );
+});
+
 const Homepage = () => {
   const [sensor, setSensor] = useState([]);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [activities, setActivities] = useState([]);
-  const [relayStatus, setRelayStatus] = useState("");
-  const [isAuto, setIsAuto] = useState(false);
   const [appData, setAppData] = useState([]);
   const [appliances, setAppliances] = useState([
     {
@@ -36,7 +147,7 @@ const Homepage = () => {
       current: 0.5,
       power: 110,
       energy: 0.2,
-      status: true,
+      status: false,
     },
     {
       id: 2,
@@ -46,7 +157,7 @@ const Homepage = () => {
       current: 0.8,
       power: 176,
       energy: 0.5,
-      status: true,
+      status: false,
     },
     {
       id: 3,
@@ -66,7 +177,7 @@ const Homepage = () => {
       current: 1.5,
       power: 330,
       energy: 0.8,
-      status: true,
+      status: false,
     },
     {
       id: 5,
@@ -76,33 +187,24 @@ const Homepage = () => {
       current: 2.0,
       power: 440,
       energy: 1.2,
-      status: true,
+      status: false,
     },
   ]);
   const [chartControl, setchartControl] = useState({
     datasets: [
       {
         name: "Bulb",
-        data: [
-          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-          0,
-        ],
+        data: Array(24).fill(0),
         color: "#f59e0b",
       },
       {
         name: "Fan",
-        data: [
-          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-          0,
-        ],
+        data: Array(24).fill(0),
         color: "#3b82f6",
       },
       {
         name: "AC",
-        data: [
-          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-          0,
-        ],
+        data: Array(24).fill(0),
         color: "#06b6d4",
       },
     ],
@@ -134,9 +236,12 @@ const Homepage = () => {
     ],
   });
 
+  const [showDialog, setShowDialog] = useState(false);
+
   const navigate = useNavigate();
 
-  function timeDisplay(timestamp) {
+  // Memoize timeDisplay function
+  const timeDisplay = useCallback((timestamp) => {
     if (!timestamp) return "";
     const date = new Date(timestamp);
     return date.toLocaleTimeString([], {
@@ -144,7 +249,71 @@ const Homepage = () => {
       minute: "2-digit",
       hour12: true,
     });
-  }
+  }, []);
+
+  // Memoize toggle function
+  const toggleApplianceStatus = useCallback((id, newStatus) => {
+    setAppliances((prevAppliances) =>
+      prevAppliances.map((app) =>
+        app.id === id ? { ...app, status: newStatus } : app
+      )
+    );
+  }, []);
+
+  // Handle appliance toggle with API call
+  const handleApplianceToggle = useCallback(
+    (applianceId, socketId, newStatus, applianceName) => {
+      // Update local state immediately for responsive UI
+      toggleApplianceStatus(applianceId, newStatus);
+
+      // Call API to update switch status
+      if (socketId) {
+        UpdateSwitch(socketId, newStatus ? "ON" : "OFF")
+          .then(() => {
+            toast.success(`${applianceName} status updated`);
+          })
+          .catch((error) => {
+            console.error("Error updating switch:", error);
+            toast.error(`Failed to update ${applianceName} status`);
+            // Revert state on error
+            toggleApplianceStatus(applianceId, !newStatus);
+          });
+      } else {
+        toast.error("Socket ID not found");
+      }
+    },
+    [toggleApplianceStatus]
+  );
+
+  // Function to handle clearing historical data
+  const handleClearHistoricalData = useCallback(async () => {
+    try {
+      const result = await clearHistoricalData();
+      if (result && result.message) {
+        toast.success(result.message);
+
+        // Refresh data to update the chart
+        const data = await getData();
+        if (data && data.chartData) {
+          setchartControl(data.chartData);
+        }
+      } else {
+        toast.error("Failed to clear historical data");
+      }
+    } catch (error) {
+      console.error("Error clearing historical data:", error);
+      toast.error("Failed to clear historical data");
+    }
+  }, []);
+
+  // Memoize chart data to prevent unnecessary re-renders
+  const chartData = useMemo(
+    () => ({
+      labels: chartControl.labels,
+      datasets: chartControl.datasets,
+    }),
+    [chartControl.labels, chartControl.datasets]
+  );
 
   useEffect(() => {
     let interval = setInterval(async () => {
@@ -155,40 +324,60 @@ const Homepage = () => {
         return;
       }
 
-      const data = await getData();
-      setIsLoading(false);
+      try {
+        const data = await getData();
+        setIsLoading(false);
 
-      if (!data) {
+        if (!data) {
+          setError("Error: failed to fetch data");
+          toast.error("Failed to fetch sensor data");
+          return;
+        }
+
+        // Only update state if data has changed
+        if (
+          data.sensor &&
+          data.sensor[0] &&
+          JSON.stringify(data.sensor[0]) !== JSON.stringify(sensor)
+        ) {
+          setSensor(data.sensor[0]);
+        }
+
+        if (
+          data.activities &&
+          JSON.stringify(data.activities) !== JSON.stringify(activities)
+        ) {
+          setActivities(data.activities);
+        }
+
+        if (
+          data.socket &&
+          JSON.stringify(data.socket) !== JSON.stringify(appData)
+        ) {
+          setAppData(data.socket);
+        }
+
+        if (
+          data.chartData &&
+          JSON.stringify(data.chartData) !== JSON.stringify(chartControl)
+        ) {
+          setchartControl(data.chartData);
+        }
+
+        if (error) {
+          setTimeout(() => {
+            setError("");
+          }, 500);
+        }
+      } catch (err) {
+        console.error("Error fetching data:", err);
         setError("Error: failed to fetch data");
         toast.error("Failed to fetch sensor data");
-        return;
-      }
-
-      setSensor(data.sensor[0]);
-      setActivities(data.activities);
-      setRelayStatus(data.socket);
-      setAppData(data.socket);
-      setchartControl(data.chartData);
-      console.log(data.chartData);
-
-      if (error) {
-        setTimeout(() => {
-          setError("");
-        }, 500);
       }
     }, 5000);
 
     return () => clearInterval(interval);
-  }, []);
-
-  const toggleApplianceStatus = (id) => {
-    setAppliances(
-      appliances.map((app) =>
-        app.id === id ? { ...app, status: !app.status } : app
-      )
-    );
-    toast.success(`Appliance status updated`);
-  };
+  }, [sensor, activities, appData, chartControl, error, navigate]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -203,7 +392,10 @@ const Homepage = () => {
               </h1>
             </div>
           </div>
-          <div className="flex items-center space-x-4">
+          <div
+            className="flex items-center space-x-4"
+            onClick={() => setShowDialog(true)}
+          >
             <div className="relative">
               <button className="flex text-sm rounded-full ">
                 <div className="h-8 w-8 rounded-full bg-gradient-to-r from-gray-800 to-gray-900 flex items-center justify-center text-white font-medium">
@@ -248,7 +440,6 @@ const Homepage = () => {
             </p>
           </div>
         </div>
-
         {/* Error Message */}
         {error && (
           <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-md">
@@ -274,13 +465,14 @@ const Homepage = () => {
           </div>
         )}
 
+        <Hospot isOpen={showDialog} onClose={() => setShowDialog(false)} />
+
         {/* Loading State */}
         {isLoading && (
           <div className="flex justify-center items-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
           </div>
         )}
-
         {/* Dashboard Grid */}
         {!isLoading && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -343,79 +535,19 @@ const Homepage = () => {
                 <div className="p-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {appliances.map((appliance, index) => (
-                      <div
+                      <ApplianceCard
                         key={`appliance-${index}`}
-                        className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden"
-                      >
-                        <div className="p-5">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center">
-                              <div className="text-2xl mr-3">
-                                {appliance.icon}
-                              </div>
-                              <h4 className="text-lg font-medium text-gray-900">
-                                {appliance.name}
-                              </h4>
-                            </div>
-                            <div className="flex items-center justify-start gap-2">
-                              <p className="text-gray-500">
-                                <span className="text-gray-500 text-sm">
-                                  Device is currently :
-                                </span>
-                                {appData[index]?.switchStatus == "ON"
-                                  ? " ON"
-                                  : " OFF"}
-                              </p>
-
-                              <Switch
-                                checked={appliance.status}
-                                onCheckedChange={() =>
-                                  toggleApplianceStatus(appliance.id)
-                                }
-                              />
-                            </div>
-                          </div>
-
-                          <div className="mt-4 grid grid-cols-2 gap-4">
-                            <div className="bg-gray-50 p-3 rounded-lg">
-                              <p className="text-sm text-gray-500">Voltage</p>
-                              <p className="text-lg font-semibold">
-                                {appData[index]?.voltage
-                                  ? appData[index].voltage
-                                  : "0"}{" "}
-                                V
-                              </p>
-                            </div>
-                            <div className="bg-gray-50 p-3 rounded-lg">
-                              <p className="text-sm text-gray-500">Current</p>
-                              <p className="text-lg font-semibold">
-                                {appData[index]?.current
-                                  ? appData[index].current
-                                  : "0"}{" "}
-                                A
-                              </p>
-                            </div>
-                            <div className="bg-gray-50 p-3 rounded-lg">
-                              <p className="text-sm text-gray-500">Power</p>
-                              <p className="text-lg font-semibold">
-                                {appData[index]?.power
-                                  ? appData[index].power
-                                  : "0"}{" "}
-                                W
-                              </p>
-                            </div>
-                            <div className="bg-gray-50 p-3 rounded-lg">
-                              <p className="text-sm text-gray-500">Energy</p>
-                              <p className="text-lg font-semibold">
-                                {appData[index]?.energy
-                                  ? appData[index].energy
-                                  : "0"}{" "}
-                                kWh
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                        appliance={appliance}
+                        appData={appData[index]}
+                        onToggle={(newStatus) =>
+                          handleApplianceToggle(
+                            appliance.id,
+                            appData[index]?._id,
+                            newStatus,
+                            appliance.name
+                          )
+                        }
+                      />
                     ))}
                   </div>
                 </div>
@@ -424,10 +556,19 @@ const Homepage = () => {
 
             <div className="lg:col-span-3 w-full">
               <SimpleChart
-                labels={chartControl.labels}
-                datasets={chartControl.datasets}
-                title="Power Consumption by Device (Watts)"
+                labels={chartData.labels}
+                datasets={chartData.datasets}
+                title="Energy Consumption by Device (kWh) in Last 24 Hours"
               />
+              <div className="w-full flex items-center justify-center bg-white py-4">
+                <button
+                  onClick={handleClearHistoricalData}
+                  className="flex items-center px-3 py-2 cursor-pointer  text-gray-500 rounded-md  transition-colors border border-gray-300"
+                >
+                  <FaTrashAlt className="mr-2" />
+                  <span>Clear Historical Data</span>
+                </button>
+              </div>
             </div>
 
             {/* Recent Activity */}
@@ -443,54 +584,11 @@ const Homepage = () => {
                     <div className="flow-root">
                       <ul className="-mb-8 overflow-y-scroll pr-5 h-[33vh]">
                         {activities.map((activity, index) => (
-                          <li key={`list${index}`}>
-                            <div className="relative pb-8">
-                              <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200"></span>
-                              <div className="relative flex space-x-3">
-                                {activity.attempted == true ? (
-                                  <div>
-                                    <span className="h-8 w-8 rounded-full bg-red-500 flex items-center justify-center ring-8 ring-white">
-                                      <VscClose className="text-white size-5 font-extrabold" />
-                                    </span>
-                                  </div>
-                                ) : (
-                                  <div>
-                                    <span className="h-8 w-8 rounded-full bg-green-500 flex items-center justify-center ring-8 ring-white">
-                                      <svg
-                                        className="h-5 w-5 text-white"
-                                        fill="currentColor"
-                                        viewBox="0 0 20 20"
-                                      >
-                                        <path
-                                          fillRule="evenodd"
-                                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                          clipRule="evenodd"
-                                        />
-                                      </svg>
-                                    </span>
-                                  </div>
-                                )}
-                                <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
-                                  <div>
-                                    <p className="text-sm text-gray-900 font-medium">
-                                      {activity.title}
-                                    </p>
-                                    <p className="text-sm text-gray-500">
-                                      {activity.attempted == true
-                                        ? "who attempted:"
-                                        : "who logged-in:"}
-                                    </p>
-                                    <p className="text-sm text-gray-500">
-                                      {activity.email}
-                                    </p>
-                                  </div>
-                                  <div className="text-right text-sm whitespace-nowrap text-gray-500">
-                                    <p>{timeDisplay(activity.timestamp)}</p>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </li>
+                          <ActivityItem
+                            key={`list${index}`}
+                            activity={activity}
+                            timeDisplay={timeDisplay}
+                          />
                         ))}
                       </ul>
                     </div>
